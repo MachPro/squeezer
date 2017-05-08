@@ -24,8 +24,6 @@ public class Encoder {
     public static int blockCount = ((width + dctBlkLen - 1) / dctBlkLen) *
             ((height + dctBlkLen - 1) / dctBlkLen);
 
-    public static int channelNum = Configuration.CHANNEL_NUM;
-
     public int currentFrameIdx = 0;
 
     public static void main(String[] args) {
@@ -45,8 +43,6 @@ public class Encoder {
         int frameCount = (int) (infile.length() / frameByteLen);
         // buffer into which the data is loaded from disk
         byte[] frame = new byte[frameByteLen];
-        // blocks the frame will be divided into
-        int[][] blocks = new int[blockCount * channelNum][dctBlkLen * dctBlkLen];
         // the DCT values for every block
         int[][] output = new int[blockCount][dctBlkLen * dctBlkLen * 3];
 
@@ -66,8 +62,7 @@ public class Encoder {
             while (currentFrameIdx < frameCount) {
                 // load data from disk
                 read(is, frame);
-                int[] tmp = doEncode(frame, previousYChannel, layer, output);
-                previousYChannel = tmp;
+                previousYChannel = doEncode(frame, previousYChannel, layer, output);
                 // clear buffer and put output into the buffer
                 buf.clear();
                 for (int j = 0; j < blockCount; ++j) {

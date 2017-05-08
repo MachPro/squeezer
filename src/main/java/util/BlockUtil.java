@@ -99,6 +99,25 @@ public class BlockUtil {
         }
     }
 
+    public static void fillBlockInFrame(byte[] currentFrame, byte[] lastFrame, int blockIdx) {
+        int xBlockCount = (width + dctBlkLen - 1) / dctBlkLen;
+        int ythBlock = blockIdx / xBlockCount;
+        int xthBlock = blockIdx % xBlockCount;
+
+        for (int k = 0; k < Configuration.CHANNEL_NUM; ++k) {
+            int base = (width * height * k) + (width * dctBlkLen * ythBlock + dctBlkLen * xthBlock);
+            for (int i = 0; i < dctBlkLen; ++i) {
+                for (int j = 0; j < dctBlkLen; ++j) {
+                    int idx = base + (i * width + j);
+
+                    if (idx < width * height * (k + 1)) {
+                        currentFrame[idx] = lastFrame[idx];
+                    }
+                }
+            }
+        }
+    }
+
     public static void fillBlockInFrame(int idx, byte[] frame, int blockIdx, int[] block) {
         int xBlockCount = (width + dctBlkLen - 1) / dctBlkLen;
         int ythBlock = blockIdx / xBlockCount;

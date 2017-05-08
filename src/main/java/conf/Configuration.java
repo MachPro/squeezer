@@ -31,7 +31,9 @@ public class Configuration {
 
     public static final int GAZE_BLOCK_LEN = 64;
 
-    public static final int PASS_FRAME_RATE = 2;
+    public static final int PASS_FRAME_RATE = 3;
     
-    public static final int FRAME_RATE = 30;
+    public static final int FRAME_RATE = 100;
+
+    public static final int THREAD_COUNT = 4;
 }

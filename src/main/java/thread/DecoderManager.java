@@ -1,11 +1,9 @@
 package thread;
 
-import exec.Decoder;
-
 import java.io.InputStream;
 
 /**
- * Created by machpro on 5/7/17.
+ * Created by MachPro on 5/7/17.
  */
 public class DecoderManager {
 

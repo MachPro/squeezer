@@ -77,14 +77,19 @@ public class DecoderWorker implements Runnable{
 
     public Set<Integer> getBackground() {
         return this.background;
+//        return new HashSet<Integer>(this.background);
+    }
+
+    public short[] getLayer() {
+        return this.layer;
     }
 
     @Override
     public void run() {
         while (frameIdx < frameCount) {
 //            System.out.println("worker on :" + frameIdx);
-//            background.clear();
-            this.displayFrame = new byte[frameByteLen];
+            background.clear();
+//            this.displayFrame = new byte[frameByteLen];
             frameAlready = false;
             read(is, fileFrame, layer, dctCof);
             doDecode(N1, N2, layer, dctCof, rgbVal);
@@ -97,10 +102,7 @@ public class DecoderWorker implements Runnable{
                     e.printStackTrace();
                 }
             }
-
-
         }
-
     }
 
     public void read(InputStream is, byte[] buf, short[] layers, int[][] dctCof) {
@@ -147,7 +149,7 @@ public class DecoderWorker implements Runnable{
         int[][] rowColBlock = new int[dctBlkLen][dctBlkLen];
         for (int i = 0; i < layers.length; ++i) {
             int quantization = (layers[i] != 0) ? N1 : N2;
-            if (quantization > 1 && frameIdx % Configuration.PASS_FRAME_RATE != 0) {
+            if (quantization == N2 && frameIdx % Configuration.PASS_FRAME_RATE != 0) {
 //                if (!lastForeground.contains(i)) {
 //                    continue;
 //                }
