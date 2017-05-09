@@ -3,7 +3,7 @@ package util;
 import conf.Configuration;
 
 /**
- * Created by yanliw on 17-4-23.
+ * Created by MachPro on 17-4-23.
  */
 public class MotionVectorUtil {
 
@@ -37,7 +37,7 @@ public class MotionVectorUtil {
         for (int i = prevMinY; i <= prevMaxY; ++i) {
             for (int j = prevMinX; j <= prevMaxX; ++j) {
                 // get block from previous Y channel
-                BlockUtil.getBlock(prevYChannel, 0, width * height,
+                BlockUtil.getBlock(prevYChannel, 0,
                         j, i, mvBlkLen, prevBlock);
                 int diff = getSAD(prevBlock, block);
                 if (diff < minDiff) {
@@ -47,6 +47,7 @@ public class MotionVectorUtil {
                 }
             }
         }
+        // if the difference between block is too large
         if (minDiff > 6000 || minDiff < 180) {
             return null;
         }
@@ -74,4 +75,6 @@ public class MotionVectorUtil {
         }
         return diff;
     }
+
+    // TODO faster search way
 }

@@ -148,7 +148,7 @@ public class Encoder {
         for (int i = 0; i < yDctBlockCount; ++i) {
             for (int j = 0; j < xDctBlockCount; ++j) {
                 // get R G B blocks
-                BlockUtil.getBlocks(frame, baseIndices, width * height,
+                BlockUtil.getBlocks(frame, baseIndices,
                         dctBlkLen * j, dctBlkLen * i, dctBlkLen, rgbBlock);
                 // for R G B channel
                 for (int k = 0; k < dctVals.length; ++k) {

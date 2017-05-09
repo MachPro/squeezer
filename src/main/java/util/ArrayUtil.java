@@ -1,7 +1,5 @@
 package util;
 
-import java.util.Arrays;
-
 /**
  * Created by yanliw on 17-4-21.
  */
@@ -32,26 +30,44 @@ public class ArrayUtil {
     /**
      * Fill an array starting at specified index with another array.
      *
-     * @param from        the array which will be used to fill another array
-     * @param to          the array to be filled
-     * @param startingIdx the starting idx of the array which will be filled
+     * @param from     the array which will be used to fill another array
+     * @param to       the array to be filled
+     * @param startIdx the starting idx of the array which will be filled
      */
-    public static void fill(int[] from, int[] to, int startingIdx) {
-        for (int i = 0; i < from.length && startingIdx + i < to.length; ++i) {
-            to[startingIdx + i] = from[i];
+    public static void fill(int[] from, int[] to, int startIdx) {
+        for (int i = 0; i < from.length && startIdx + i < to.length; ++i) {
+            to[startIdx + i] = from[i];
         }
     }
 
-    public static void fill(int[][] from, int[] to, int startingIdx) {
+    /**
+     * Fill a 1-D array using the data from an 2-D array.
+     */
+    public static void fill(int[][] from, int[] to, int startIdx) {
         int count = 0;
         for (int i = 0; i < from.length; ++i) {
             for (int j = 0; j < from[0].length; ++j) {
-                if (startingIdx + count < to.length) {
-                    to[startingIdx + count] = from[i][j];
+                if (startIdx + count < to.length) {
+                    to[startIdx + count] = from[i][j];
                     ++count;
                 } else {
                     break;
                 }
+            }
+        }
+    }
+
+    /**
+     * Fill a range of an array with the data from another array.
+     */
+    public static void fillRange(byte[] from, byte[] to,
+                                 int startFromIdx, int endFromIdx,
+                                 int startToIdx, int endToIdx) {
+        for (int i = 0; i < endFromIdx - startFromIdx && i < endToIdx - startToIdx; ++i) {
+            if (startFromIdx + i < from.length && startToIdx + i < to.length) {
+                to[startToIdx + i] = from[startFromIdx + i];
+            } else {
+                break;
             }
         }
     }

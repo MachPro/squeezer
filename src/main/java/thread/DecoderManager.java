@@ -14,7 +14,7 @@ public class DecoderManager {
         init(is, N1, N2, frameCount);
     }
 
-    public void init(InputStream is, int N1, int N2, int frameCount) {
+    private void init(InputStream is, int N1, int N2, int frameCount) {
         for (int i = 0; i < workers.length; ++i) {
             DecoderWorker worker = new DecoderWorker(is, N1, N2, frameCount);
             worker.setFrameIdx(i);
