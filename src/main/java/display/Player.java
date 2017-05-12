@@ -16,7 +16,6 @@ import java.awt.image.BufferedImage;
 public class Player {
 
     private boolean playFlag;
-    private int frameLen;
     private JFrame myFrame;
     private JLabel lbText1, lbText2;
     private JPanel myPanel;
@@ -29,8 +28,7 @@ public class Player {
     private long waitTime = 0;
     private long totalWaitTime = 0;
 
-    public Player(int frameCount) {
-        this.frameLen = frameCount;
+    public Player() {
         this.initPlayer();
     }
 
@@ -143,8 +141,7 @@ public class Player {
         }
 
         //Update the information displayed in the panel
-        String videoInfo = String.format("height*width: %d*%d, frame: %3d/%d",
-                height, width, frameNum, frameLen);
+        String videoInfo = String.format("height*width: %d*%d", height, width);
         String gazeControlInfo = String.format("Loc:x=%d,y=%d  ", p.x, p.y);
         lbText1.setText(videoInfo);
         lbText2.setText(gazeControlInfo);

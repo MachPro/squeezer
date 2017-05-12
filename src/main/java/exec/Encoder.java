@@ -8,41 +8,72 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 /**
- * Created by yanliw on 17-4-20.
+ * Created by MachPro on 17-4-20.
  */
 public class Encoder {
 
-    public static int width = Configuration.WIDTH;
+    private int width;
 
-    public static int height = Configuration.HEIGHT;
+    private int height;
 
-    public static int frameByteLen = Configuration.FRAME_BYTE_LEN;
-
-    public static int dctBlkLen = Configuration.DCT_BLOCK_LEN;
+    private int dctBlkLen = Configuration.DCT_BLOCK_LEN;
 
     // number of dct blocks in one channel of frame
-    public static int blockCount = ((width + dctBlkLen - 1) / dctBlkLen) *
-            ((height + dctBlkLen - 1) / dctBlkLen);
+    private int blockCount;
 
-    public int currentFrameIdx = 0;
-
+    /**
+     * Usage: filePath width height
+     * @param args
+     */
     public static void main(String[] args) {
         Encoder encoder = new Encoder();
+        encoder.processArgs(args);
         encoder.run(args[0]);
     }
 
+    private void processArgs(String[] args) {
+        int fileStartIdx = args[0].lastIndexOf('/');
+        int fileEndIdx = args[0].lastIndexOf('.');
+
+        String fileName;
+        if (fileStartIdx < 0) {
+            if (fileEndIdx < 0) {
+                fileName = args[0];
+            } else {
+                fileName = args[0].substring(0, fileEndIdx);
+            }
+        } else {
+            if (fileEndIdx < 0) {
+                fileName = args[0].substring(fileStartIdx + 1);
+            } else {
+                fileName = args[0].substring(fileStartIdx + 1, fileEndIdx);
+            }
+        }
+        Configuration.CMP_FILENAME = fileName + ".cmp";
+        if (args.length > 1) {
+            Configuration.WIDTH = Integer.parseInt(args[1]);
+        }
+        if (args.length > 2) {
+            Configuration.HEIGHT = Integer.parseInt(args[2]);
+        }
+        this.width = Configuration.WIDTH;
+        this.height = Configuration.HEIGHT;
+        this.blockCount = ((width + dctBlkLen - 1) / dctBlkLen) *
+                ((height + dctBlkLen - 1) / dctBlkLen);
+    }
+
     /**
-     * Get input before encoding and output encoding result to disk.
+     * Get input before encoding and write encoding result to disk.
      * The actual encoding work will be completed in doEncode function.
      */
     public void run(String inputFilename) {
         File infile = new File(inputFilename);
-        File outfile = new File(Configuration.DCT_OUTPUT_FILENAME);
+        File outfile = new File(Configuration.CMP_FILENAME);
 
         // number of frames
-        int frameCount = (int) (infile.length() / frameByteLen);
+        int frameCount = (int) (infile.length() / Configuration.FRAME_BYTE_LEN);
         // buffer into which the data is loaded from disk
-        byte[] frame = new byte[frameByteLen];
+        byte[] frame = new byte[Configuration.FRAME_BYTE_LEN];
         // the DCT values for every block
         int[][] output = new int[blockCount][dctBlkLen * dctBlkLen * 3];
 
@@ -55,31 +86,23 @@ public class Encoder {
         try (InputStream is = new FileInputStream(infile);
              FileOutputStream out = new FileOutputStream(outfile);
              FileChannel fc = out.getChannel()) {
+
             // buffer for DCT values
             ByteBuffer buf = ByteBuffer.allocate(4 * blockCount * dctBlkLen * dctBlkLen * 3 + 1);
+            writeMetaData(fc, buf, frameCount);
+
             int[] previousYChannel = null;
+            int currentFrameIdx = 0;
             // for each frame
             while (currentFrameIdx < frameCount) {
                 // load data from disk
                 read(is, frame);
                 previousYChannel = doEncode(frame, previousYChannel, layer, output);
-                // clear buffer and put output into the buffer
-                buf.clear();
-                for (int j = 0; j < blockCount; ++j) {
-                    buf.putShort((short) layer[j]);
-                    for (int k = 0; k < dctBlkLen * dctBlkLen * 3; ++k) {
-                        buf.putShort((short) output[j][k]);
-                    }
-                }
-                buf.flip();
-                // write to the disk
-                while (buf.hasRemaining()) {
-                    fc.write(buf);
-                }
+                write(layer, output, fc, buf);
                 ++currentFrameIdx;
-//                System.out.println(currentFrameIdx);
+                System.out.println(currentFrameIdx);
             }
-            System.out.println("write to " + Configuration.DCT_OUTPUT_FILENAME + " succeed");
+            System.out.println("write to " + Configuration.CMP_FILENAME + " succeed");
             long end = System.currentTimeMillis();
             System.out.println("finish at:" + end + " last for " + (end - begin));
         } catch (IOException e) {
@@ -87,20 +110,52 @@ public class Encoder {
         }
     }
 
-    /**
-     * Partition frame, transform color space and calculate DCT value.
-     *
-     * @param frame  original data from disk
-     * @param blocks blocks the original data will be divided into
-     * @param output into which the DCT value will be store
-     */
-    public void doEncode(byte[] frame, int[][] blocks, int[][] output) {
-        BlockUtil.partitionFrame(frame, blocks);
-        for (int j = 0; j < blockCount; ++j) {
-            // convert RGB to YCbCr color space and store the Y channel in blocks array
-            TransformUtil.RGBToY(blocks[j], blocks[j + blockCount], blocks[j + blockCount * 2], blocks[j]);
-            int[] dctVals = DCTUtil.do2DDCTWithAAN(blocks[j]);
-            output[j] = dctVals;
+    public void writeMetaData(FileChannel fc, ByteBuffer buf, int frameCount) throws IOException {
+        buf.clear();
+        buf.putInt(frameCount);
+        buf.flip();
+        while (buf.hasRemaining()) {
+            fc.write(buf);
+        }
+    }
+
+    public void write(int[] layer, int[][] output, FileChannel fc, ByteBuffer buf) throws IOException {
+        buf.clear();
+        // length for this frame
+        int frameLen = 0;
+        buf.putInt(frameLen);
+        for (int i = 0; i < output.length; ++i) {
+            // layer for this block
+            buf.put((byte) layer[i]);
+            ++frameLen;
+            int j = 0;
+            int consecutiveZero = 0;
+            while (j < output[i].length) {
+                if (output[i][j] == 0) {
+                    // write (0, consecutive 0 count)
+                    int k = j;
+                    while (k < output[i].length && output[i][k] == 0) {
+                        ++consecutiveZero;
+                        ++k;
+                    }
+                    buf.put((byte) 0);
+                    buf.put((byte) consecutiveZero);
+                    consecutiveZero = 0;
+                    frameLen += 2;
+                    j = k;
+                } else {
+                    // write DCT value
+                    buf.put((byte) output[i][j]);
+                    ++frameLen;
+                    ++j;
+                }
+            }
+        }
+        buf.putInt(0, frameLen);
+        buf.flip();
+        // write to disk
+        while (buf.hasRemaining()) {
+            fc.write(buf);
         }
     }
 
@@ -113,18 +168,16 @@ public class Encoder {
      * @param output           into which the DCT value will be store
      * @return the Y channel of current frame
      */
-    public int[] doEncode(byte[] currentFrame, int[] previousYChannel, int[] layer, int[][] output) {
-        doEncodeDCTBlock(currentFrame, output);
-
+    private int[] doEncode(byte[] currentFrame, int[] previousYChannel, int[] layer, int[][] output) {
         int[] currentYChannel = new int[width * height];
         // transform the current frame into Y channel
         for (int i = 0; i < currentYChannel.length; ++i) {
             currentYChannel[i] = TransformUtil.RGBToY(currentFrame[i],
                     currentFrame[i + width * height], currentFrame[i + width * height * 2]);
         }
-//        SegmentationUtil.segmentationMostMV(currentYChannel, previousYChannel, layer);
         SegmentationUtil.segmentationIterate(currentYChannel, previousYChannel, layer);
-//        SegmentationUtil.segmentationMultiParam(currentYChannel, previousYChannel, layer);
+        doEncodeDCTBlock(currentFrame, layer, output);
+
         return currentYChannel;
     }
 
@@ -135,7 +188,7 @@ public class Encoder {
      * @param frame  the frame we are dealing with
      * @param output where these DCT values are stored
      */
-    public void doEncodeDCTBlock(byte[] frame, int[][] output) {
+    private void doEncodeDCTBlock(byte[] frame, int[] layer, int[][] output) {
         // number of DCT blocks in x and y axis
         int xDctBlockCount = (width + dctBlkLen - 1) / dctBlkLen;
         int yDctBlockCount = (height + dctBlkLen - 1) / dctBlkLen;
@@ -143,19 +196,25 @@ public class Encoder {
         int[][] rgbBlock = new int[3][dctBlkLen * dctBlkLen];
         // base index in frame to get R G B component
         int[] baseIndices = {0, width * height, width * height * 2};
-        int[][] dctVals = new int[3][];
+        int[] dctVals;
 
         for (int i = 0; i < yDctBlockCount; ++i) {
             for (int j = 0; j < xDctBlockCount; ++j) {
+                int blockIdx = i * xDctBlockCount + j;
                 // get R G B blocks
                 BlockUtil.getBlocks(frame, baseIndices,
                         dctBlkLen * j, dctBlkLen * i, dctBlkLen, rgbBlock);
                 // for R G B channel
-                for (int k = 0; k < dctVals.length; ++k) {
+                for (int k = 0; k < rgbBlock.length; ++k) {
                     // calculate the DCT value for each channel
-                    dctVals[k] = DCTUtil.do2DDCTWithAAN(rgbBlock[k]);
+                    dctVals = DCTUtil.do2DDCTWithAAN(rgbBlock[k]);
+                    if (layer[blockIdx] == 0) {
+                        QuantizationUtil.quantize(dctVals, 2);
+                    } else {
+                        QuantizationUtil.quantize(dctVals, 1);
+                    }
                     // put R G B DCT values into one array
-                    ArrayUtil.fill(dctVals[k], output[i * xDctBlockCount + j],
+                    ArrayUtil.fill(dctVals, output[i * xDctBlockCount + j],
                             dctBlkLen * dctBlkLen * k);
                 }
             }
@@ -167,7 +226,7 @@ public class Encoder {
      *
      * @param buf the buffer into which the frame data is read
      */
-    public void read(InputStream is, byte[] buf) {
+    private void read(InputStream is, byte[] buf) {
         int offset = 0;
         int numRead = 0;
         try {

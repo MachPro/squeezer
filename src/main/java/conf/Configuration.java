@@ -3,13 +3,13 @@ package conf;
 /**
  * Basic configuration for this project.
  * <p/>
- * Created by yanliw on 17-4-18.
+ * Created by MachPro on 17-4-18.
  */
 public class Configuration {
 
-    public static final int WIDTH = 960;
+    public static int WIDTH = 960;
 
-    public static final int HEIGHT = 540;
+    public static int HEIGHT = 540;
 
     // R G B three channels
     public static final int CHANNEL_NUM = 3;
@@ -23,9 +23,9 @@ public class Configuration {
     // size of motion vector block
     public static final int MOTION_VECTOR_BLOCK_LEN = 16;
 
-    public static final String DCT_OUTPUT_FILENAME = "DCT_VALUES2";
+    public static String CMP_FILENAME = "default.cmp";
 
-    public static final int BYTE_MASK = 0XFF;
+    public static final int BYTE_MASK = 0xFF;
 
     public static final int MOTION_VECTOR_SEARCH_SIZE = 8;
 

@@ -1,9 +1,13 @@
 package exception;
 
 /**
- * Created by yanliw on 17-4-18.
+ * Created by MachPro on 17-4-18.
  */
 public class BaseException extends RuntimeException {
+
+    public BaseException() {
+        super();
+    }
 
     public BaseException(String message) {
         super(message);

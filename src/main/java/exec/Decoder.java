@@ -6,11 +6,13 @@ import thread.DecoderManager;
 import thread.DecoderWorker;
 import util.ArrayUtil;
 import util.BlockUtil;
+import util.ByteUtil;
 import util.DCTUtil;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Set;
 
@@ -27,14 +29,11 @@ public class Decoder {
     // allow gaze control or not
     private boolean gazeControl;
 
-    public static int width = Configuration.WIDTH;
+    private static int width = Configuration.WIDTH;
 
-    public static int height = Configuration.HEIGHT;
+    private static int height = Configuration.HEIGHT;
 
-    public static int dctBlkLen = Configuration.DCT_BLOCK_LEN;
-
-    public static int blockCount = ((width + dctBlkLen - 1) / dctBlkLen) *
-            ((height + dctBlkLen - 1) / dctBlkLen);
+    private static int dctBlkLen = Configuration.DCT_BLOCK_LEN;
 
     public static void main(String[] args) {
         Decoder decoder = new Decoder(args);
@@ -44,25 +43,20 @@ public class Decoder {
     public Decoder(String[] args) {
         this.N1 = (int) Double.parseDouble(args[0]);
         this.N2 = (int) Double.parseDouble(args[1]);
-        this.gazeControl = (1 == Integer.valueOf(args[2]));
+//        this.gazeControl = (1 == Integer.valueOf(args[2]));
     }
 
     /**
      * Read compressed file and do some preparation work before decoding starts.
      */
     private void run() {
-        File file = new File(Configuration.DCT_OUTPUT_FILENAME);
-        // a short is two bytes, a frame has 120 * 68 blocks,
-        // a block has 8 * 8 * 3 dct coefficients plus 1 layer coefficient
-        int fileFrameLen = 2 * blockCount * (dctBlkLen * dctBlkLen * 3 + 1);
+        File file = new File(Configuration.CMP_FILENAME);
 
-        int frameCount = (int) (file.length() / fileFrameLen);
-        System.out.println("frame count: " + frameCount);
-
-        Player player = new Player(frameCount);
+        Player player = new Player();
         player.initPlayer();
         while (true) {
             try (FileInputStream fis = new FileInputStream(file)) {
+                int frameCount = readMetaData(fis);
                 player.resetTime();
                 // thread manager is in charge of the creation and running of decoder workers
                 DecoderManager manager = new DecoderManager(Configuration.THREAD_COUNT, fis, N1, N2, frameCount);
@@ -180,7 +174,7 @@ public class Decoder {
      * @param rgbVal rgb values after decoding
      * @param N      quantization factor
      */
-    public void doBlockDecode(int[] dctCof, int[] rgbVal, int N) {
+    private void doBlockDecode(int[] dctCof, int[] rgbVal, int N) {
         for (int j = 0; j < Configuration.CHANNEL_NUM; ++j) {
             // base index for rgb channel coefficients
             int cofBaseIdx = dctBlkLen * dctBlkLen * j;
@@ -219,4 +213,14 @@ public class Decoder {
         return true;
     }
 
+    private int readMetaData(InputStream is) throws IOException {
+        int offset = 0;
+        int numRead;
+        byte[] buf = new byte[4];
+        while (offset < buf.length
+                && (numRead = is.read(buf, offset, buf.length - offset)) >= 0) {
+            offset += numRead;
+        }
+        return ByteUtil.byteToInt(buf,0, 4);
+    }
 }

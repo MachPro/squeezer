@@ -4,6 +4,7 @@ import conf.Configuration;
 import exec.Decoder;
 import util.ArrayUtil;
 import util.BlockUtil;
+import util.ByteUtil;
 import util.DCTUtil;
 
 import java.io.IOException;
@@ -50,6 +51,10 @@ public class DecoderWorker implements Runnable {
 
     private int frameCount;
 
+    public DecoderManager manager;
+
+    public boolean shouldStart;
+
     public DecoderWorker(InputStream is, int N1, int N2, int frameCount) {
         this.is = is;
         this.N1 = N1;
@@ -89,7 +94,8 @@ public class DecoderWorker implements Runnable {
             // clear data for last frame
             backgrounds.clear();
             frameAlready = false;
-            read(is, cmpFileFrame, layer, dctCof);
+//            read(is, cmpFileFrame, layer, dctCof);
+            read();
             doDecode(N1, N2, layer, dctCof, rgbVal);
             BlockUtil.fillFrame(frameIdx, displayFrame, rgbVal, layer);
             frameAlready = true;
@@ -150,6 +156,63 @@ public class DecoderWorker implements Runnable {
                 ++blockIdx;
             }
         }
+    }
+
+    public void read() {
+        try {
+            byte[] buf;
+            // read frame data from compressed file
+            synchronized (is) {
+                int frameLen = readFrameLen(is);
+                buf = new byte[frameLen];
+
+                int offset = 0;
+                int numRead;
+                while (offset < buf.length
+                        && (numRead = is.read(buf, offset, buf.length - offset)) >= 0) {
+                    offset += numRead;
+                }
+            }
+
+            int bufIdx = 0;
+            int blockIdx = 0;
+            while (blockIdx < dctBlockCount) {
+                layer[blockIdx] = buf[bufIdx];
+                ++bufIdx;
+
+                int cofIdx = 0;
+                while (cofIdx < dctCof[blockIdx].length) {
+                    if (buf[bufIdx] == 0) {
+                        ++bufIdx;
+                        int consecutiveZero = buf[bufIdx];
+                        for (int i = 0; i < consecutiveZero; ++i) {
+                            dctCof[blockIdx][cofIdx] = 0;
+                            ++cofIdx;
+                        }
+                    } else {
+                        dctCof[blockIdx][cofIdx] = buf[bufIdx] & 0xFF;
+                        ++cofIdx;
+                    }
+                    ++bufIdx;
+                }
+                ++blockIdx;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
+    private int readFrameLen(InputStream is) throws IOException {
+        int offset = 0;
+        int numRead;
+        byte[] buf = new byte[4];
+        while (offset < buf.length
+                && (numRead = is.read(buf, offset, buf.length - offset)) >= 0) {
+            offset += numRead;
+        }
+        return ByteUtil.byteToInt(buf,0, 4);
     }
 
     /**

@@ -20,55 +20,8 @@ public class BlockUtil {
     public static int width = Configuration.WIDTH;
 
     public static int dctBlkLen = Configuration.DCT_BLOCK_LEN;
-
-    public static int channelNum = Configuration.CHANNEL_NUM;
-    // number of block in x (horizon) and y (vertical) axis
+    // number of DCT block in x (horizon) and y (vertical) axis
     public static int xBlockCount = (width + dctBlkLen - 1) / dctBlkLen;
-
-    public static int yBlockCount = (height + dctBlkLen - 1) / dctBlkLen;
-
-    /**
-     * Partition the RGB frame into blocks and convert the byte frame data to integer at the same time.
-     *
-     * @param blocks the blocks buffer into which the frame is divided
-     */
-    public static void partitionFrame(byte[] frame, int[][] blocks) {
-        // for R G B channel
-        for (int channel = 0; channel < channelNum; ++channel) {
-            // starting block index in 2-D blocks array
-            int channelBlkIdxBase = channel * (xBlockCount * yBlockCount);
-            // starting original data index in frame
-            int channelValIdxBase = channel * (width * height);
-            // from upper left to lower right
-            for (int ythBlock = 0; ythBlock < yBlockCount; ++ythBlock) {
-                for (int xthBlock = 0; xthBlock < xBlockCount; ++xthBlock) {
-                    int blockIdx = (ythBlock * xBlockCount + xthBlock) + channelBlkIdxBase;
-                    // for each block
-                    for (int row = 0; row < dctBlkLen; ++row) {
-                        for (int col = 0; col < dctBlkLen; ++col) {
-                            // index in 1-D block array
-                            int valIdx = row * dctBlkLen + col;
-                            int originalIdxOffset = getOffset(xthBlock, ythBlock, row, col);
-                            // when the index is beyond the border fill the block with 0
-                            if (originalIdxOffset >= width * height) {
-                                blocks[blockIdx][valIdx] = 0;
-                            } else {
-                                // convert the byte data into integer using a mask
-                                blocks[blockIdx][valIdx] = frame[originalIdxOffset + channelValIdxBase]
-                                        & Configuration.BYTE_MASK;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    public static int getOffset(int xthBlock, int ythBlock, int row, int col) {
-        int base = ythBlock * (width * dctBlkLen) + xthBlock * (dctBlkLen);
-        int offset = base + row * width + col;
-        return offset;
-    }
 
     /**
      * Extract multiple blocks from the frame.
