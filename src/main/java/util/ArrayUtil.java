@@ -1,7 +1,7 @@
 package util;
 
 /**
- * Created by yanliw on 17-4-21.
+ * Created by MachPro on 17-4-21.
  */
 public class ArrayUtil {
 

@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * Segment the block into foreground and background according to motion vector.
+ * <p/>
  * Created by MachPro on 17-5-2.
  */
 public class SegmentationUtil {
@@ -185,7 +187,7 @@ public class SegmentationUtil {
      * @param globalY
      * @return
      */
-    public static double[] iterateMV(int[][] mvs, double globalX, double globalY) {
+    private static double[] iterateMV(int[][] mvs, double globalX, double globalY) {
         double updateX = .0;
         double updateY = .0;
         int count = 0;
@@ -213,8 +215,8 @@ public class SegmentationUtil {
         return new double[]{updateX, updateY, count};
     }
 
-    public static boolean isSimilar(double diffX, double diffY,
-                                    double generalX, double generalY, double lenThreshold) {
+    private static boolean isSimilar(double diffX, double diffY,
+                                     double generalX, double generalY, double lenThreshold) {
         double lenDiff = Math.pow(diffX - generalX, 2) + Math.pow(diffY - generalY, 2);
 
         return lenDiff < lenThreshold;
@@ -291,7 +293,7 @@ public class SegmentationUtil {
      * @param mvs motion vectors for all blocks
      * @return four parameters to describe the global motion vector
      */
-    public static double[] initGlobalMV(int[][] mvs) {
+    private static double[] initGlobalMV(int[][] mvs) {
         return iterateMV(mvs, 0, 0, 0, 0, Integer.MAX_VALUE);
     }
 
@@ -300,7 +302,7 @@ public class SegmentationUtil {
      *
      * @see <a href="">Golam Sorwar et al. A novel filter for block-based motion estimation</a>
      */
-    public static double[] iterateMV(int[][] mvs, double kx, double bx, double ky, double by, double lenThreshold) {
+    private static double[] iterateMV(int[][] mvs, double kx, double bx, double ky, double by, double lenThreshold) {
         int count = 0;
 
         long sumVx = 0;
@@ -357,8 +359,8 @@ public class SegmentationUtil {
      * @param lenThreshold
      * @return
      */
-    public static boolean isSimilar(double kx, double bx, double ky, double by,
-                                    int vx, int vy, int sx, int sy, double lenThreshold) {
+    private static boolean isSimilar(double kx, double bx, double ky, double by,
+                                     int vx, int vy, int sx, int sy, double lenThreshold) {
         double diffX = vx - kx * sx - bx;
         double diffY = vy - ky * sy - by;
         double distance = Math.pow(diffX, 2) + Math.pow(diffY, 2);

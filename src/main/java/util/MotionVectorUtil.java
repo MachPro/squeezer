@@ -7,11 +7,11 @@ import conf.Configuration;
  */
 public class MotionVectorUtil {
 
-    public static int width = Configuration.WIDTH;
+    private static int width = Configuration.WIDTH;
 
-    public static int height = Configuration.HEIGHT;
+    private static int height = Configuration.HEIGHT;
 
-    public static int mvBlkLen = Configuration.MOTION_VECTOR_BLOCK_LEN;
+    private static int mvBlkLen = Configuration.MOTION_VECTOR_BLOCK_LEN;
 
     /**
      * Motion vector calculation based on brute force search.
@@ -57,7 +57,7 @@ public class MotionVectorUtil {
     /**
      * Get the Sum of Absolute Difference for given blocks.
      */
-    public static int getSAD(int[] prevBlock, int[] currentBlock) {
+    private static int getSAD(int[] prevBlock, int[] currentBlock) {
         int diff = 0;
         for (int i = 0; i < prevBlock.length; ++i) {
             diff += Math.abs(prevBlock[i] - currentBlock[i]);

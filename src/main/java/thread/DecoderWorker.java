@@ -2,10 +2,7 @@ package thread;
 
 import conf.Configuration;
 import exec.Decoder;
-import util.ArrayUtil;
-import util.BlockUtil;
-import util.ByteUtil;
-import util.DCTUtil;
+import util.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,8 +31,6 @@ public class DecoderWorker implements Runnable {
     private int[][] dctCof = new int[dctBlockCount][dctBlkLen * dctBlkLen * 3];
     // decoded rgb frame
     private byte[] displayFrame = new byte[Configuration.FRAME_BYTE_LEN];
-    // buffer used to read one compressed frame
-    private byte[] cmpFileFrame = new byte[2 * dctBlockCount * (dctBlkLen * dctBlkLen * 3 + 1)];
     // the background blocks which will not be calculated during iDCT process
     private Set<Integer> backgrounds = new HashSet<>();
     // whether the process of one-frame decoding is completed
@@ -45,20 +40,14 @@ public class DecoderWorker implements Runnable {
 
     private InputStream is;
 
-    private int N1;
-
-    private int N2;
-
     private int frameCount;
 
     public DecoderManager manager;
 
     public boolean shouldStart;
 
-    public DecoderWorker(InputStream is, int N1, int N2, int frameCount) {
+    public DecoderWorker(InputStream is, int frameCount) {
         this.is = is;
-        this.N1 = N1;
-        this.N2 = N2;
         this.frameCount = frameCount;
     }
 
@@ -94,9 +83,8 @@ public class DecoderWorker implements Runnable {
             // clear data for last frame
             backgrounds.clear();
             frameAlready = false;
-//            read(is, cmpFileFrame, layer, dctCof);
             read();
-            doDecode(N1, N2, layer, dctCof, rgbVal);
+            doDecode(layer, dctCof, rgbVal);
             BlockUtil.fillFrame(frameIdx, displayFrame, rgbVal, layer);
             frameAlready = true;
             synchronized (this) {
@@ -111,58 +99,13 @@ public class DecoderWorker implements Runnable {
 
     /**
      * Read one frame from the compressed file and store the coefficients.
-     *
-     * @param is     input stream to the compressed file
-     * @param buf    buffer to store the file
-     * @param layers layer coefficient
-     * @param dctCof DCT value of rgb channel
      */
-    public void read(InputStream is, byte[] buf, short[] layers, int[][] dctCof) {
-        synchronized (is) {
-            // read byte data from file
-            try {
-                int offset = 0;
-                int numRead;
-                while (offset < buf.length
-                        && (numRead = is.read(buf, offset, buf.length - offset)) >= 0) {
-                    offset += numRead;
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            // convert every two byte data to one short data
-            int blockIdx = 0;
-            int bufIdx = 0;
-            while (blockIdx < dctBlockCount) {
-                // layer coefficient
-                byte firstByte = buf[bufIdx];
-                byte secondByte = buf[bufIdx + 1];
-                bufIdx = bufIdx + 2;
-
-                short layer = (short) ((firstByte & 0xFF) << 8 | (secondByte & 0xFF));
-                layers[blockIdx] = layer;
-                // DCT coefficients for rgb channel
-                int cofIdx = 0;
-                while (cofIdx < dctBlkLen * dctBlkLen * Configuration.CHANNEL_NUM) {
-                    firstByte = buf[bufIdx];
-                    secondByte = buf[bufIdx + 1];
-                    bufIdx = bufIdx + 2;
-
-                    short dctVal = (short) ((firstByte & 0xFF) << 8 | (secondByte & 0xFF));
-                    dctCof[blockIdx][cofIdx] = dctVal;
-
-                    ++cofIdx;
-                }
-                ++blockIdx;
-            }
-        }
-    }
-
-    public void read() {
+    private void read() {
         try {
             byte[] buf;
             // read frame data from compressed file
             synchronized (is) {
+                // the length of one frame data
                 int frameLen = readFrameLen(is);
                 buf = new byte[frameLen];
 
@@ -190,7 +133,7 @@ public class DecoderWorker implements Runnable {
                             ++cofIdx;
                         }
                     } else {
-                        dctCof[blockIdx][cofIdx] = buf[bufIdx] & 0xFF;
+                        dctCof[blockIdx][cofIdx] = buf[bufIdx];
                         ++cofIdx;
                     }
                     ++bufIdx;
@@ -200,8 +143,6 @@ public class DecoderWorker implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-
     }
 
     private int readFrameLen(InputStream is) throws IOException {
@@ -218,13 +159,14 @@ public class DecoderWorker implements Runnable {
     /**
      * Decode the current frame and do iDCT to covert the coefficients to rgb value.
      */
-    private void doDecode(int N1, int N2, short[] layers, int[][] dctCof, int[][] rgbVal) {
+    private void doDecode(short[] layers, int[][] dctCof, int[][] rgbVal) {
         for (int i = 0; i < layers.length; ++i) {
-            int quantization = (layers[i] != 0) ? N1 : N2;
+            int factor = (layers[i] != 0) ? Configuration.FORE_GROUND_QUANTIZATION_FACTOR :
+                    Configuration.BACK_GROUND_QUANTIZATION_FACTOR;
             // do not repaint the background every frame
-            if (quantization == N2 && frameIdx % Configuration.BACKGROUND_REPAINT_RATE != 0) {
+            if (layer[i] == 0 && frameIdx % Configuration.BACKGROUND_REPAINT_RATE != 0) {
                 // ignore these background blocks if their neighbors are all background blocks
-                if (Decoder.isAroundAllBackground(i, layers)) {
+                if (DecodeUtil.isAroundAllBackground(i, layers)) {
                     backgrounds.add(i);
                     continue;
                 }
@@ -234,8 +176,9 @@ public class DecoderWorker implements Runnable {
                 int idxBase = dctBlkLen * dctBlkLen * j;
 
                 int[] oneDDCT = Arrays.copyOfRange(dctCof[i], idxBase, idxBase + dctBlkLen * dctBlkLen);
-                int[] iDCTVal = DCTUtil.doAANiDCT(quantization, oneDDCT);
-                ArrayUtil.fill(iDCTVal, rgbVal[i], idxBase);
+                QuantizationUtil.dequantize(oneDDCT, factor);
+                DCTUtil.doAANiDCT(oneDDCT);
+                ArrayUtil.fill(oneDDCT, rgbVal[i], idxBase);
             }
         }
     }

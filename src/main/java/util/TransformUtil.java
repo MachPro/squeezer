@@ -3,9 +3,9 @@ package util;
 import conf.Configuration;
 
 /**
- * Convertion from RGB to YCbCr and back.
+ * Conversion from RGB to YCbCr and back.
  * <p/>
- * Created by yanliw on 17-4-18.
+ * Created by MachPro on 17-4-18.
  */
 public class TransformUtil {
 

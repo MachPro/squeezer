@@ -5,6 +5,9 @@ package util;
  */
 public class ByteUtil {
 
+    /**
+     * Convert consecutive bytes into integer.
+     */
     public static int byteToInt(byte[] bytes, int start, int len) {
         int result = 0;
         for (int i = 0; i < len; ++i) {

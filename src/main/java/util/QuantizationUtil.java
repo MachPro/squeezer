@@ -26,6 +26,14 @@ public class QuantizationUtil {
         }
     }
 
+    public static void dequantize(int[] dctVals, int factor) {
+        for (int i = 0; i < quantiaztion.length; ++i) {
+            for (int j = 0; j < quantiaztion[i].length; ++j) {
+                dctVals[i * quantiaztion[i].length + j] *= (quantiaztion[i][j] * factor);
+            }
+        }
+    }
+
     public static void dequantize(int[][] dctVals) {
         for (int i = 0; i < dctVals.length; ++i) {
             for (int j = 0; j < dctVals[i].length; ++j) {

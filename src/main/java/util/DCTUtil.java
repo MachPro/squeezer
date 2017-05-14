@@ -247,19 +247,20 @@ public class DCTUtil {
         return iDCTVals;
     }
 
-    public static int[] doAANiDCT(int quantization, int[] dctVals) {
+    /**
+     * Do iDCT using AAN algorithm. The result will be return in the parameters.
+     * @param dctVals
+     */
+    public static void doAANiDCT(int[] dctVals) {
         double temp[] = new double[64];
-
-        for (int i = 0; i < 64; i++) {
-            temp[i] = (dctVals[i] / quantization) * prescale[i];
+        for (int i = 0; i < dctVals.length; ++i) {
+            temp[i] = dctVals[i] * prescale[i];
         }
-
-        p8iDCT(dctVals, temp, 1, 8, quantization, 0);
-        p8iDCT(dctVals, temp, 8, 1, quantization, 1);
-        return dctVals;
+        p8iDCT(dctVals, temp, 1, 8, 0);
+        p8iDCT(dctVals, temp, 8, 1, 1);
     }
 
-    public static void p8iDCT(int data[], double temp[], int x, int y, int quantization, int type) {
+    public static void p8iDCT(int data[], double temp[], int x, int y, int type) {
         double tmp0, tmp1;
         double s04, d04, s17, d17, s26, d26, s53, d53;
         double os07, os16, os25, os34;
@@ -311,14 +312,14 @@ public class DCTUtil {
                 temp[4 * x + i] = os34 + od34;
             } else if (type == 1) {
                 int[] sum = new int[8];
-                sum[0] = (int) Math.round((os07 + od07) * quantization);
-                sum[1] = (int) Math.round((os07 - od07) * quantization);
-                sum[2] = (int) Math.round((os16 + od16) * quantization);
-                sum[3] = (int) Math.round((os16 - od16) * quantization);
-                sum[4] = (int) Math.round((os25 + od25) * quantization);
-                sum[5] = (int) Math.round((os25 - od25) * quantization);
-                sum[6] = (int) Math.round((os34 - od34) * quantization);
-                sum[7] = (int) Math.round((os34 + od34) * quantization);
+                sum[0] = (int) Math.round(os07 + od07);
+                sum[1] = (int) Math.round(os07 - od07);
+                sum[2] = (int) Math.round(os16 + od16);
+                sum[3] = (int) Math.round(os16 - od16);
+                sum[4] = (int) Math.round(os25 + od25);
+                sum[5] = (int) Math.round(os25 - od25);
+                sum[6] = (int) Math.round(os34 - od34);
+                sum[7] = (int) Math.round(os34 + od34);
                 for (int k = 0; k < 7; k++) {
                     if (sum[k] <= 0)
                         sum[k] = 0;

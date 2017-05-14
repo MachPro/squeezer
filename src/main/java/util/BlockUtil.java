@@ -142,7 +142,7 @@ public class BlockUtil {
             // do not paint the background whose neighbors are all background
             if (layer[blockIdx] == 0 &&
                     frameIdx % Configuration.BACKGROUND_REPAINT_RATE != 0 &&
-                    Decoder.isAroundAllBackground(blockIdx, layer)) {
+                    DecodeUtil.isAroundAllBackground(blockIdx, layer)) {
                 continue;
             } else {
                 fillBlockInFrame(frame, blockIdx, rgbVal[blockIdx]);

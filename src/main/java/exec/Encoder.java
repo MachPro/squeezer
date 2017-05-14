@@ -8,6 +8,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 /**
+ * Read video file, compress it and write the compression file.
+ * <p/>
  * Created by MachPro on 17-4-20.
  */
 public class Encoder {
@@ -23,7 +25,6 @@ public class Encoder {
 
     /**
      * Usage: filePath width height
-     * @param args
      */
     public static void main(String[] args) {
         Encoder encoder = new Encoder();
@@ -63,10 +64,10 @@ public class Encoder {
     }
 
     /**
-     * Get input before encoding and write encoding result to disk.
+     * Get input before encoding.
      * The actual encoding work will be completed in doEncode function.
      */
-    public void run(String inputFilename) {
+    private void run(String inputFilename) {
         File infile = new File(inputFilename);
         File outfile = new File(Configuration.CMP_FILENAME);
 
@@ -76,10 +77,9 @@ public class Encoder {
         byte[] frame = new byte[Configuration.FRAME_BYTE_LEN];
         // the DCT values for every block
         int[][] output = new int[blockCount][dctBlkLen * dctBlkLen * 3];
-
+        // layer for every block
         int[] layer = new int[blockCount];
 
-//        System.out.println(blockCount * dctBlkLen * dctBlkLen + " DCT blocks per frame");
         System.out.println(frameCount + " frames");
         long begin = System.currentTimeMillis();
         System.out.println("begin exec at: " + begin);
@@ -88,74 +88,31 @@ public class Encoder {
              FileChannel fc = out.getChannel()) {
 
             // buffer for DCT values
-            ByteBuffer buf = ByteBuffer.allocate(4 * blockCount * dctBlkLen * dctBlkLen * 3 + 1);
+            // 4 byte for frame length
+            // for every block one byte for layer and at most two bytes for each DCT value
+            ByteBuffer buf = ByteBuffer.allocate(4 + blockCount *
+                    (1 + 2 * dctBlkLen * dctBlkLen * Configuration.CHANNEL_NUM));
+            // write # of frame
             writeMetaData(fc, buf, frameCount);
-
+            // Y channel for last frame
             int[] previousYChannel = null;
             int currentFrameIdx = 0;
             // for each frame
             while (currentFrameIdx < frameCount) {
                 // load data from disk
                 read(is, frame);
+                // Y channel of current frame will be returned
                 previousYChannel = doEncode(frame, previousYChannel, layer, output);
+                // write encoding result of one frame to compressed file
                 write(layer, output, fc, buf);
                 ++currentFrameIdx;
-                System.out.println(currentFrameIdx);
+//                System.out.println(currentFrameIdx);
             }
             System.out.println("write to " + Configuration.CMP_FILENAME + " succeed");
             long end = System.currentTimeMillis();
             System.out.println("finish at:" + end + " last for " + (end - begin));
         } catch (IOException e) {
             e.printStackTrace();
-        }
-    }
-
-    public void writeMetaData(FileChannel fc, ByteBuffer buf, int frameCount) throws IOException {
-        buf.clear();
-        buf.putInt(frameCount);
-        buf.flip();
-        while (buf.hasRemaining()) {
-            fc.write(buf);
-        }
-    }
-
-    public void write(int[] layer, int[][] output, FileChannel fc, ByteBuffer buf) throws IOException {
-        buf.clear();
-        // length for this frame
-        int frameLen = 0;
-        buf.putInt(frameLen);
-        for (int i = 0; i < output.length; ++i) {
-            // layer for this block
-            buf.put((byte) layer[i]);
-            ++frameLen;
-            int j = 0;
-            int consecutiveZero = 0;
-            while (j < output[i].length) {
-                if (output[i][j] == 0) {
-                    // write (0, consecutive 0 count)
-                    int k = j;
-                    while (k < output[i].length && output[i][k] == 0) {
-                        ++consecutiveZero;
-                        ++k;
-                    }
-                    buf.put((byte) 0);
-                    buf.put((byte) consecutiveZero);
-                    consecutiveZero = 0;
-                    frameLen += 2;
-                    j = k;
-                } else {
-                    // write DCT value
-                    buf.put((byte) output[i][j]);
-                    ++frameLen;
-                    ++j;
-                }
-            }
-        }
-        buf.putInt(0, frameLen);
-        buf.flip();
-        // write to disk
-        while (buf.hasRemaining()) {
-            fc.write(buf);
         }
     }
 
@@ -175,7 +132,9 @@ public class Encoder {
             currentYChannel[i] = TransformUtil.RGBToY(currentFrame[i],
                     currentFrame[i + width * height], currentFrame[i + width * height * 2]);
         }
+        // segment blocks into background and foreground
         SegmentationUtil.segmentationIterate(currentYChannel, previousYChannel, layer);
+        // encode blocks
         doEncodeDCTBlock(currentFrame, layer, output);
 
         return currentYChannel;
@@ -208,10 +167,11 @@ public class Encoder {
                 for (int k = 0; k < rgbBlock.length; ++k) {
                     // calculate the DCT value for each channel
                     dctVals = DCTUtil.do2DDCTWithAAN(rgbBlock[k]);
+                    // quantize DCT values
                     if (layer[blockIdx] == 0) {
-                        QuantizationUtil.quantize(dctVals, 2);
+                        QuantizationUtil.quantize(dctVals, Configuration.BACK_GROUND_QUANTIZATION_FACTOR);
                     } else {
-                        QuantizationUtil.quantize(dctVals, 1);
+                        QuantizationUtil.quantize(dctVals, Configuration.FORE_GROUND_QUANTIZATION_FACTOR);
                     }
                     // put R G B DCT values into one array
                     ArrayUtil.fill(dctVals, output[i * xDctBlockCount + j],
@@ -228,7 +188,7 @@ public class Encoder {
      */
     private void read(InputStream is, byte[] buf) {
         int offset = 0;
-        int numRead = 0;
+        int numRead;
         try {
             while (offset < buf.length
                     && (numRead = is.read(buf, offset, buf.length - offset)) >= 0) {
@@ -236,6 +196,75 @@ public class Encoder {
             }
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * Write some meta data. Here write the number of frames to the head of compressed file.
+     *
+     * @param fc         file channel to the compressed file
+     * @param buf        byte buffer to store meta data
+     * @param frameCount meta data here is the number of frames
+     */
+    private void writeMetaData(FileChannel fc, ByteBuffer buf, int frameCount) throws IOException {
+        buf.clear();
+        buf.putInt(frameCount);
+        buf.flip();
+        while (buf.hasRemaining()) {
+            fc.write(buf);
+        }
+    }
+
+    /**
+     * Write encoding result to compressed file.
+     */
+    private void write(int[] layer, int[][] output, FileChannel fc, ByteBuffer buf) throws IOException {
+        buf.clear();
+        // length in byte for this frame after compression
+        int frameLen = 0;
+        // put a 4 byte placeholder here
+        buf.putInt(frameLen);
+        for (int i = 0; i < output.length; ++i) {
+            // layer for this block
+            buf.put((byte) layer[i]);
+            ++frameLen;
+            int j = 0;
+            int consecutiveZero = 0;
+            while (j < output[i].length) {
+                if (output[i][j] == 0) {
+                    // write (0, consecutive 0 count)
+                    int k = j;
+                    while (k < output[i].length && output[i][k] == 0) {
+                        ++consecutiveZero;
+                        ++k;
+                    }
+                    if (consecutiveZero >= 128) {
+                        buf.put((byte) 0);
+                        buf.put((byte) 127);
+                        buf.put((byte) 0);
+                        buf.put((byte) (consecutiveZero - 127));
+                        frameLen += 4;
+                    } else {
+                        buf.put((byte) 0);
+                        buf.put((byte) consecutiveZero);
+                        frameLen += 2;
+                    }
+                    consecutiveZero = 0;
+                    j = k;
+                } else {
+                    // write DCT value
+                    buf.put((byte) output[i][j]);
+                    ++frameLen;
+                    ++j;
+                }
+            }
+        }
+        // put the length at the first place
+        buf.putInt(0, frameLen);
+        buf.flip();
+        // write to disk
+        while (buf.hasRemaining()) {
+            fc.write(buf);
         }
     }
 }

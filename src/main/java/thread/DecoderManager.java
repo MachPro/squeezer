@@ -3,20 +3,22 @@ package thread;
 import java.io.InputStream;
 
 /**
+ * DecoderManger manages the creation and execution of DecoderWorker.
+ * <p/>
  * Created by MachPro on 5/7/17.
  */
 public class DecoderManager {
 
-    DecoderWorker[] workers;
+    private DecoderWorker[] workers;
 
-    public DecoderManager(int n, InputStream is, int N1, int N2, int frameCount) {
+    public DecoderManager(int n, InputStream is, int frameCount) {
         this.workers = new DecoderWorker[n];
-        init(is, N1, N2, frameCount);
+        init(is, frameCount);
     }
 
-    private void init(InputStream is, int N1, int N2, int frameCount) {
+    private void init(InputStream is, int frameCount) {
         for (int i = 0; i < workers.length; ++i) {
-            DecoderWorker worker = new DecoderWorker(is, N1, N2, frameCount);
+            DecoderWorker worker = new DecoderWorker(is, frameCount);
             worker.setFrameIdx(i);
 
             workers[i] = worker;
