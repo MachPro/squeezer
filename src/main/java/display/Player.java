@@ -15,12 +15,11 @@ import java.awt.image.BufferedImage;
  */
 public class Player {
 
-    private boolean playFlag;
+    public boolean playFlag;
     private JFrame myFrame;
     private JLabel lbText1, lbText2;
     private JPanel myPanel;
     private GridBagConstraints constraint;
-    private Point p;
     private JButton toggleButton;
 
     private long pauseTime = 0;
@@ -55,7 +54,6 @@ public class Player {
         initPanel();
         myFrame.getContentPane().add(myPanel, constraint);
 
-        p = new Point();
         playFlag = true;
     }
 
@@ -67,20 +65,16 @@ public class Player {
 
         toggleButton = new JButton("PAUSE");
         toggleButton.addActionListener(
-                new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        if (playFlag) {
-                            toggleButton.setText("PLAY");
-                            pauseTime = System.currentTimeMillis();
-//                        	System.out.println("Video Paused!");
-                        } else {
-                            toggleButton.setText("PAUSE");
-                            restartTime = System.currentTimeMillis();
-                            waitTime = restartTime - pauseTime;
-//                        	System.out.println("Video Play!");
-                        }
-                        playFlag = !playFlag;
+                e -> {
+                    if (playFlag) {
+                        toggleButton.setText("PLAY");
+                        pauseTime = System.currentTimeMillis();
+                    } else {
+                        toggleButton.setText("PAUSE");
+                        restartTime = System.currentTimeMillis();
+                        waitTime = restartTime - pauseTime;
                     }
+                    playFlag = !playFlag;
                 }
         );
 
@@ -93,26 +87,9 @@ public class Player {
         return totalWaitTime;
     }
 
-    /**
-     * Control the mouse event
-     */
-    private class MyMouseAdapter extends MouseAdapter {
-        @Override
-        public void mouseMoved(MouseEvent event) {
-            p.x = event.getX();
-            p.y = event.getY();
-            //System.out.println("Mouse moved! Pos is: " + event.getX()+ "," + event.getY() + ".");
-        }
-
-    }
-
     public void resetTime() {
         totalWaitTime = 0;
         waitTime = 0;
-    }
-
-    public int[] getMouse() {
-        return new int[]{p.x, p.y};
     }
 
     /**
@@ -120,10 +97,9 @@ public class Player {
      *
      * @param data the rgb data in byte to display
      */
-    public boolean doPlay(byte[] data, int frameNum) {
+    public void doPlay(byte[] data) {
         int width = Configuration.WIDTH;
         int height = Configuration.HEIGHT;
-
         BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 
         //Obtain the rgb value of the images        
@@ -139,26 +115,16 @@ public class Player {
                 index++;
             }
         }
-
-        //Update the information displayed in the panel
-        String videoInfo = String.format("height*width: %d*%d", height, width);
-        String gazeControlInfo = String.format("Loc:x=%d,y=%d  ", p.x, p.y);
-        lbText1.setText(videoInfo);
-        lbText2.setText(gazeControlInfo);
-
         //Update the image
         JLabel myImgLabel = new JLabel(new ImageIcon(img));
-        MouseAdapter adapter = new MyMouseAdapter();
-        myImgLabel.addMouseMotionListener(adapter);
         constraint.gridx = 0;
         constraint.gridy = 1;
         myFrame.getContentPane().add(myImgLabel, constraint, 0);
+        // remove last frame
         myFrame.getContentPane().remove(1);
 
         myFrame.pack();
         myFrame.repaint();
         myFrame.setVisible(true);
-
-        return playFlag;
     }
 }

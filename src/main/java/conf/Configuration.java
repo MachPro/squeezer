@@ -31,11 +31,11 @@ public class Configuration {
 
     public static final int BACKGROUND_REPAINT_RATE = 3;
     
-    public static final int FRAME_RATE = 20;
+    public static final int FRAME_RATE = 30;
 
     public static final int THREAD_COUNT = 4;
 
     public static final int FORE_GROUND_QUANTIZATION_FACTOR = 1;
 
-    public static final int BACK_GROUND_QUANTIZATION_FACTOR = 8;
+    public static final int BACK_GROUND_QUANTIZATION_FACTOR = 4;
 }

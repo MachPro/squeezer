@@ -67,29 +67,28 @@ public class Decoder {
      */
     private void doDecode(DecoderManager manager, Player player, int frameCount)
             throws InterruptedException {
-        // play or pause
-        boolean playFlag = true;
         // last frame used to fill the background
         byte[] lastFrame = null;
         short[] lastLayer = null;
 
         long beginTime = System.currentTimeMillis();
         long lastTime = System.currentTimeMillis();
+        System.out.println(frameCount);
         int currentFrameIdx = 0;
         while (currentFrameIdx < frameCount) {
-            // fetch the worker which is responsible to calculate the current frame
-            DecoderWorker worker = manager.getWorker(currentFrameIdx % Configuration.THREAD_COUNT);
-            while (!worker.isFrameAlready()) {
-                synchronized (worker) {
-                    worker.wait(5);
+            if (!player.playFlag) {
+                // if paused, keep the image
+                synchronized (this) {
+                    this.wait(100);
                 }
-            }
-
-            if (!playFlag) {
-                // TODO do not need to call the function
-                // if paused, continue play last frame
-                playFlag = player.doPlay(lastFrame, currentFrameIdx);
             } else {
+                // fetch the worker which is responsible to calculate the current frame
+                DecoderWorker worker = manager.getWorker(currentFrameIdx % Configuration.THREAD_COUNT);
+                while (!worker.isFrameAlready()) {
+                    synchronized (worker) {
+                        worker.wait(5);
+                    }
+                }
                 // get data of current frame
                 int[][] dctCof = worker.getDctCof();
                 byte[] displayFrame = worker.getDisplayFrame();
@@ -114,7 +113,7 @@ public class Decoder {
                 lastFrame = Arrays.copyOf(displayFrame, displayFrame.length);
                 lastLayer = Arrays.copyOf(layer, layer.length);
 
-                playFlag = player.doPlay(displayFrame, currentFrameIdx);
+                player.doPlay(displayFrame);
                 if (currentFrameIdx == 0) {
                     beginTime = System.currentTimeMillis();
                 } else {
@@ -125,7 +124,7 @@ public class Decoder {
                             currentFrameIdx * 1000.0 / Configuration.FRAME_RATE)
                         ;
                 }
-                System.out.println(currentFrameIdx + ": " + (System.currentTimeMillis() - lastTime));
+//                System.out.println(currentFrameIdx + ": " + (System.currentTimeMillis() - lastTime));
                 lastTime = System.currentTimeMillis();
                 // wake the worker
                 worker.setFrameIdx(currentFrameIdx + Configuration.THREAD_COUNT);
@@ -135,7 +134,7 @@ public class Decoder {
                 ++currentFrameIdx;
             }
         }
-        System.out.println("last for: " + (System.currentTimeMillis() - beginTime));
+        System.out.println("last for: " + (System.currentTimeMillis() - beginTime - player.getWaitTime()));
     }
 
     /**
